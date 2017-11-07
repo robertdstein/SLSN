@@ -1,0 +1,17 @@
+SN Name,Redshift,Survey,Reference
+PTF12dam,0.108,Palomar Transient Factory,Nicholl et al. (2013)
+SN2011ke,0.143,Catalina Real-Time Transient Survey,Inserra et al. (2013)
+"",,& Palomar Transient Factory,
+SN2012il,0.175,Pan-STARRS,Lunnan et al. (2013)
+PTF11rks,0.192,Palomar Transient Factory,Inserra et al. (2013)
+SN2010gx,0.230,Palomar Transient Factory,Pastorello et al. (2010)
+PTF09cnd,0.258,Palomar Transient Factory,Quimby et al. (2011)
+SN2013dg,0.265,Catalina Real-Time Transient Survey,Nicholl et al. (2014)
+PS1-11ap,0.524,Pan-STARRS,McCrum et al. (2014)
+DES14X3taz,0.608,Dark Energy Survey,Smith et al. (2016)
+PS1-10bzj,0.650,Pan-STARRS,Lunnan et al. (2013)
+DES13S2cmm,0.663,Dark Energy Survey,Papadopoulos et al. (2015)
+iPTF13ajg,0.741,intermediate Palomar Transient Factory,Vreeswijk et al. (2014)
+PS1-10awh,0.909,Pan-STARRS,Chomiuk et al. (2011)
+SNLS-07D2bv,1.500,SNLS,Howell et al. (2013)
+SNLS-06D4eu,1.588,SNLS,Howell et al. (2013)

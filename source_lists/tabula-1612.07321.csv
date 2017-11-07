@@ -1,0 +1,43 @@
+SN Namea,Redshift z,Phasesb of Spectra,LC Bandc,Referencesd
+ASASSN-15lh?,0.2326,"13, 15, 20, 26, 36, 39",V (B),Dong et al. (2016)
+"(or SN 2015L)",,,,
+DES13S2cmm,0.663,35,r (u),Papadopoulos et al. (2015)
+"(or SN 2013hy)",,,,
+DES14X3taz,0.608,"−20,−13",g (u),Smith et al. (2016)
+LSQ12dlf,0.25,"6, 8, 8, 15, 20, 33, 43",V (B),Nicholl et al. (2014)
+LSQ14bdq,0.35,−19,r (g),Nicholl et al. (2015a)
+LSQ14mo,0.256,"−7,−2, 9, 15, 22",r (g),Chen et al. (2016b)
+PS1-10awh,0.908,"−18, 6, 13",mix of filters†,Chomiuk et al. (2011)
+PS1-10bzj,0.650,"7, 14, 16",bolometric,Lunnan et al. (2013)
+PS1-10ky,0.956,"−2, 1, 15, 26",mix of filters†,Chomiuk et al. (2011)
+PS1-11ap,0.524,"−20,−1, 10, 38, 78, 90+(1)",r (g),McCrum et al. (2014)
+PTF09atu,0.501,−20,(u),Quimby et al. (2011)
+PTF09cnd,0.258,"−18, 90+(1)",(u),Quimby et al. (2011)
+PTF09cwl,0.349,−2,(u),Quimby et al. (2011)
+"(or SN 2009jh)",,,,
+PTF10cwr,0.231,"−8,−5,−4, 4, 10, 21, 29, 57",(u),Quimby et al. (2011)
+"(or SN 2010gx)",,,,
+PTF10hgi,0.0985,"33, 68, 81",g (g),Inserra et al. (2013)
+"(or SN 2010md)",,,,
+PTF11rks,0.193,"2, 9, 17, 48",g (g),Inserra et al. (2013)
+PTF12dam,0.1078,"−16,−15,−14,−14,−8,−1, 10, 14, 14,",bolometric,Nicholl et al. (2013)
+"",,"18, 34, 55, 65, 65, 90+(5)",,
+SCP06F6,1.189,"−11, 0, 5",z (g),Barbary et al. (2009)
+SNLS06D4eu,1.588,−15,bolometric,Howell et al. (2013)
+SNLS07D2bv,1.5,−4,i (u),Howell et al. (2013)
+SSS120810-23,0.17,"7, 8, 13, 32, 39, 57",R (R),Nicholl et al. (2014)
+iPTF13ajg,0.74,"−9,−8,−4, 8, 9, 25, 27, 46, 80",R (B),Vreeswijk et al. (2014)
+iPTF13ehe,0.33,"−9,−5, 14, 90+(3)",r (g),Yan et al. (2015)
+SN 2005ap,0.2832,"−2, 5, 5",unfiltered,Quimby et al. (2007)
+SN 2006oz,0.376,−5,bolometric,Leloudas et al. (2012)
+SN 2007bi,0.1279,"48, 54, 55, 90+(4)",R (R),Gal-Yam et al. (2009)
+"",,,,Young et al. (2010)
+SN 2011ke,0.143,"9, 15, 24, 31, 38, 45",g (g),Inserra et al. (2013)
+"(or PTF11dij, PS1-11xk)",,,,
+SN 2011kf,0.245,"25, 51",g (u),Inserra et al. (2013)
+SN 2011kl/GRB111209A??,0.677,−1,bolometric,Greiner et al. (2015)
+SN 2012il,0.175,"13, 41, 41",g (g),Inserra et al. (2013)
+"(or PS1-12fo)",,,,
+SN 2013dg,0.26,"3, 5, 15, 21, 35, 46",r (g),Nicholl et al. (2014)
+SN 2015bn,0.1136,"−28,−27,−22,−21,−18,−9,−8,−2, 3, 6,",r (r),Nicholl et al. (2016)
+"(or PS15ae)",,"19, 30, 31, 44, 50, 57, 71, 83, 89, 90+(3)",,
