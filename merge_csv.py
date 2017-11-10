@@ -3,6 +3,7 @@ import csv
 from astropy.time import Time
 from tabulate import tabulate
 
+
 class catalogue():
     """Class to extract SLSN entries from various data tables."""
     def __init__(self):
@@ -13,6 +14,9 @@ class catalogue():
         self.extract_1604_08207()
         self.extract_1605_0250()
         self.extract_1612_05978()
+
+        self.unique_entries = []
+        self.combine_entries()
 
         self.make_table()
 
@@ -35,10 +39,12 @@ class catalogue():
 
         ])
 
-        table = np.zeros_like(self.entries, dtype=dt)
+        table = np.zeros_like(self.unique_entries, dtype=dt)
         print "There are", len(self.entries), "entries in SLSN catalogue."
+        print "There are", len(self.unique_entries), "unique entries in SLSN " \
+                                                     "catalogue."
 
-        for i, sn in enumerate(self.entries):
+        for i, sn in enumerate(self.unique_entries):
             table[i] = np.array(
                 (sn.name, sn.type, sn.redshift, sn.abs_peak,
                  sn.radiated_energy_lower, sn.radiated_energy_upper, sn.ref,
@@ -47,10 +53,90 @@ class catalogue():
                 dtype=dt
             )
 
-        to_print = ["Name", "Alias", "Redshift", "Type", "RA", "Dec",
+        to_print = ["Name", "Redshift", "Type", "RA", "Dec", "Peak Date",
                     "Arxiv Link"]
         table = np.sort(table, order=['Redshift'], axis=0).view()
-        # print tabulate(table[to_print], to_print)
+        print tabulate(table[to_print], to_print)
+
+    def combine_entries(self):
+
+        def convert_string(name):
+            new = name.lower()
+            for character in [" ", "-", " ", "(", ")", ":"]:
+                new = new.replace(character, "")
+            return new
+
+        for entry in self.entries:
+            included = False
+            new_names = [entry.name]
+            new_names.extend(entry.alias)
+            for name in new_names:
+                name_to_check = convert_string(name)
+
+                for existing_entry in self.unique_entries:
+                    current_names = [existing_entry.name]
+                    current_names.extend(existing_entry.alias)
+                    for current in current_names:
+                        if included:
+                            break
+                        if name_to_check == convert_string(current):
+                            included = True
+                            notes = (entry.notes + ", " +
+                                     existing_entry.notes + ", ")
+                            for key in vars(entry).keys():
+                                new_val = getattr(entry, key)
+                                old_val = getattr(existing_entry, key)
+                                if new_val is not np.nan:
+                                    if key in ["arxiv", "ref"]:
+                                        to_add = old_val + ", " + new_val
+                                        setattr(existing_entry, key, to_add)
+                                    elif key == "alias":
+                                        all_names = list(new_names)
+                                        all_names.extend(current_names)
+                                        all_set = set(all_names)
+                                        all_names = list(all_set)
+                                        all_names.remove(existing_entry.name)
+
+                                        setattr(existing_entry, key,
+                                                all_names)
+
+                                    elif key in ["name", "notes"]:
+                                        pass
+
+                                    elif old_val is np.nan:
+                                        setattr(existing_entry, key,
+                                                new_val)
+                                    elif old_val == new_val:
+                                        pass
+                                    elif (isinstance(old_val, float) and
+                                              isinstance(new_val, float)):
+                                        n_digits = min(len(str(old_val)),
+                                                       len(str(new_val))) - 2
+
+                                        if round(old_val, n_digits) == round(
+                                                new_val, n_digits):
+                                            if len(str(old_val)) > len(
+                                                    str(new_val)):
+                                                pass
+                                            else:
+                                                setattr(existing_entry, key,
+                                                        new_val)
+                                        else:
+                                            notes += ("Numerical Discrepancy "
+                                                      "in " + key +
+                                                      ": " + str(old_val) +
+                                                      ", " + str(new_val) +
+                                                      ", ")
+                                    else:
+                                        notes += ("Discrepancy in " + key +
+                                                  ": " + str(old_val) +
+                                                  ", " + str(new_val) + ", ")
+                            setattr(existing_entry, "notes", notes)
+                        # break
+
+
+            if not included:
+                self.unique_entries.append(entry)
 
     def extract_1208_3217(self):
         """Extracts SLSN entries for arxiv paper 1208.3217 (page 31)"""
@@ -65,7 +151,7 @@ class catalogue():
                 elif row[1] == "":
                     type = row[0]
                 else:
-                    new = slsn()
+                    new = SLSN()
                     new.name = row[0]
                     new.type = type
                     new.arxiv = arxiv
@@ -110,7 +196,7 @@ class catalogue():
                 if i < 1:
                     pass
                 else:
-                    new = slsn()
+                    new = SLSN()
                     new.name = "PTF" + row[0]
                     new.ra = row[1]
                     dec = [x for x in row[2]]
@@ -183,7 +269,7 @@ class catalogue():
                 elif row[0] == '""':
                     pass
                 else:
-                    new = slsn()
+                    new = SLSN()
                     new.name = row[0]
                     new.redshift = float(row[1])
                     new.ref = row[3]
@@ -202,6 +288,9 @@ class catalogue():
 
         alias_dict = dict()
         alias_path = "source_lists/1612.05978_aliases.txt"
+
+        ref_dict = dict()
+        ref_path = "source_lists/1612.05978_references.txt"
 
         def add_to_alias_dict(current_list, counter):
             current_list = current_list.split(",")
@@ -232,7 +321,17 @@ class catalogue():
                 else:
                     current_list += " ".join(row)
                     current_list += " "
+
             add_to_alias_dict(current_list, counter)
+
+        with open(ref_path, 'rb') as f:
+            reader = csv.reader(f, delimiter=';', quotechar='|')
+            for row in reader:
+                for entry in row[1:-1]:
+                    entry = entry.split(":")
+                    key = entry[0].strip()[1:-1]
+                    value = entry[1]
+                    ref_dict[str(key)] = value
 
         remainders = []
 
@@ -240,7 +339,7 @@ class catalogue():
             with open(path, 'rb') as csvfile:
                 reader = csv.reader(csvfile, delimiter=',', quotechar='|')
                 for row in reader:
-                    new = slsn()
+                    new = SLSN()
 
                     name = row[0]
                     if "SN20" in name:
@@ -272,10 +371,14 @@ class catalogue():
                     new.redshift = float("".join(rs))
 
                     new.type = row[4]
-                    new.ebv = row[5]
+                    new.ebv = float(row[5])
 
-                    refs = list("".join(row[7:]))
-                    print refs
+                    refs = ",".join(row[7:]).strip('"')[1:-1].split(",")
+
+                    references = ""
+
+                    for i in refs:
+                        references += ref_dict[i.strip()] + ","
 
                     new.arxiv = arxiv
 
@@ -287,8 +390,7 @@ class catalogue():
                             "name-modification corrections.")
 
 
-
-class slsn:
+class SLSN:
     """Class for one superluminous supernovae
     """
     def __init__(self):
