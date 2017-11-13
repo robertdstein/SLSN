@@ -1,6 +1,8 @@
 import numpy as np
 import csv
 from astropy.time import Time
+import astropy.units as u
+import astropy.constants as c
 from tabulate import tabulate
 
 
@@ -14,6 +16,8 @@ class catalogue():
         self.extract_1604_08207()
         self.extract_1605_0250()
         self.extract_1612_05978()
+        self.extract_1612_07321()
+        self.extract_1705_06047()
 
         self.unique_entries = []
         self.combine_entries()
@@ -40,9 +44,7 @@ class catalogue():
         ])
 
         table = np.zeros_like(self.unique_entries, dtype=dt)
-        print "There are", len(self.entries), "entries in SLSN catalogue."
-        print "There are", len(self.unique_entries), "unique entries in SLSN " \
-                                                     "catalogue."
+
 
         for i, sn in enumerate(self.unique_entries):
             table[i] = np.array(
@@ -53,16 +55,31 @@ class catalogue():
                 dtype=dt
             )
 
-        to_print = ["Name", "Redshift", "Type", "RA", "Dec", "Peak Date",
+        to_print = ["Name", "Redshift", "Type", "RA", "Dec", "Absolute Magnitude Peak",
                     "Arxiv Link"]
         table = np.sort(table, order=['Redshift'], axis=0).view()
         print tabulate(table[to_print], to_print)
 
+        print "There are", len(self.entries), "entries in SLSN catalogue."
+        print "There are", len(self.unique_entries), "unique entries in SLSN " \
+                                                     "catalogue."
+
     def combine_entries(self):
+        """Combine entries from
+
+        :return:
+        """
 
         def convert_string(name):
+            """Convert a name into the most basic form, to eable comparison
+            despite differing style conventions.
+
+            :param name: Name to be converted
+            :return: Name, in lowercase, with spaces, brackets, colons and
+            dashes removed.
+            """
             new = name.lower()
-            for character in [" ", "-", " ", "(", ")", ":"]:
+            for character in [" ", "-",  "(", ")", ":"]:
                 new = new.replace(character, "")
             return new
 
@@ -88,7 +105,9 @@ class catalogue():
                                 old_val = getattr(existing_entry, key)
                                 if new_val is not np.nan:
                                     if key in ["arxiv", "ref"]:
+                                        print current, old_val, new_val
                                         to_add = old_val + ", " + new_val
+
                                         setattr(existing_entry, key, to_add)
                                     elif key == "alias":
                                         all_names = list(new_names)
@@ -282,17 +301,31 @@ class catalogue():
         """Extracts SLSN entries for arxiv paper 1612.05978 (pages 4 and 5)"""
         arxiv = "1612.05978 (p.4&5)"
 
+        # The data table is spread over two pages, so each csv is looped over
+
         path1 = "source_lists/tabula-1612.05978 (dragged)(1).csv"
         path2 = "source_lists/tabula-1612.05978-1 (dragged) 2(1).csv"
         paths = [path1, path2]
 
+        # Additional aliases are given at the bottom of the table as footnotes.
+        # The alias file contains these, in txt format
+
         alias_dict = dict()
         alias_path = "source_lists/1612.05978_aliases.txt"
+
+        # The reference for each entry is given at the bottom of the table.
+        # The ref file contains these, in txt format
 
         ref_dict = dict()
         ref_path = "source_lists/1612.05978_references.txt"
 
         def add_to_alias_dict(current_list, counter):
+            """Adds an entry to the Alias dictionary, which may itself
+            contain more than one name within a list.
+
+            :param current_list: Contains the list of all aliases
+            :param counter: The index of the footnote
+            """
             current_list = current_list.split(",")
 
             for j, name in enumerate(current_list):
@@ -306,6 +339,8 @@ class catalogue():
                 current_list[j] = name
 
             alias_dict[str(counter)] = current_list
+
+        # Creates the alias dictionary
 
         with open(alias_path, 'rb') as f:
             reader = csv.reader(f, delimiter=';', quotechar='|')
@@ -324,6 +359,8 @@ class catalogue():
 
             add_to_alias_dict(current_list, counter)
 
+        # Creates the references dictionary
+
         with open(ref_path, 'rb') as f:
             reader = csv.reader(f, delimiter=';', quotechar='|')
             for row in reader:
@@ -333,6 +370,8 @@ class catalogue():
                     value = entry[1]
                     ref_dict[str(key)] = value
 
+        # Creates a list to check each footnote has been found in reading
+
         remainders = []
 
         for path in paths:
@@ -340,6 +379,10 @@ class catalogue():
                 reader = csv.reader(csvfile, delimiter=',', quotechar='|')
                 for row in reader:
                     new = SLSN()
+
+                    # Checks for the footnote numbers, which are added to the
+                    #  end of the entries in this column. Also removes
+                    # special characters from names.
 
                     name = row[0]
                     if "SN20" in name:
@@ -356,22 +399,35 @@ class catalogue():
                         name = name[:-1]
                     new.name = name
                     rest = row[0][len(name):]
+
+                    # Adds footnote to remainder list, to check that all 24
+                    # footnotes were found and removed from the entries. Adds
+                    #  the corresponding aliases to the entry
+
                     if rest.isdigit():
                         remainders.append(int(rest))
                         new.alias = alias_dict[rest]
 
                     new.ra = row[1]
 
+                    # Assigns dec, and checks to see if a "-" hasbeen ommited
+                    #  from negative declinations
                     dec = row[2]
                     if len(dec) < 11:
                         dec = "-" + dec
                     new.dec = dec
+
+                    # Removes special characters from redshift
 
                     rs = [x for x in row[3] if x.isdigit() or x == "."]
                     new.redshift = float("".join(rs))
 
                     new.type = row[4]
                     new.ebv = float(row[5])
+
+                    # Finds the numbers for the references of each entry,
+                    # looks up the corresponding references themselves,
+                    # and adds these to the entry.
 
                     refs = ",".join(row[7:]).strip('"')[1:-1].split(",")
 
@@ -389,6 +445,98 @@ class catalogue():
                             "errors. However, there were not 24 "
                             "name-modification corrections.")
 
+    def extract_1612_07321(self):
+        """Extracts SLSN entries for arxiv paper 1612.07321 (page 4)"""
+        arxiv = "1612.07321 (p. 4)"
+
+        new_entries = []
+
+        path = "source_lists/tabula-1612.07321.csv"
+
+        with open(path, 'rb') as csvfile:
+            reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+            for i, row in enumerate(reader):
+                if i < 1:
+                    pass
+                elif row[0][0] != '"':
+                    new = SLSN()
+                    name = row[0].split("/")
+
+                    # Add note for SN2011kl, which is associated with an
+                    # ultra-long GRB
+                    if len(name) > 1:
+                        GRB_name = "".join([x for x in name[1] if x is not "?"])
+                        new.notes = "Associated with " + GRB_name
+                        new.name = name[0]
+
+                    # Adds note for ASASSN-15lh, which has a debatable
+                    # categorisation as either an SLSN or a TDE
+                    elif "?" in name[0]:
+                        new.notes = "May be a Tidal Disruption Event (TDE)!"
+                        new.name = "".join([x for x in name[0] if x is not "?"])
+                    else:
+                        new.name = name[0]
+
+                    new.redshift = float(row[1])
+                    new.ref = row[-1]
+                    new.arxiv = arxiv
+                    new.type = "SLSN-I"
+                    new_entries.append(new)
+                else:
+                    previous = new_entries[-1]
+
+                    # Checks for additional aliases, given in the row beneath
+                    #  the main entry
+                    if row[0] != '""':
+                        new_alias = []
+                        j = 0
+                        while row[j] != '':
+                            alias = row[j]
+                            alias = alias.replace("(or ", "")
+                            alias = alias.replace(")", "")
+                            alias = alias.replace('"', "")
+
+                            new_alias.append(alias)
+                            j += 1
+                        previous.alias = new_alias
+
+                    # Checks for additional references, given in the row
+                    # beneath the main entry
+                    if row[-1] != '':
+                        previous.ref += ", " + row[-1]
+
+        self.entries.extend(new_entries)
+
+    def extract_1705_06047(self):
+        """Extracts SLSN entries for arxiv paper 1705.06047 (page 7)"""
+        arxiv = "1705.06047 (p.7)"
+
+        new_entries = []
+
+        path = "source_lists/tabula-1705.06047.csv"
+
+        with open(path, 'rb') as csvfile:
+            reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+            for i, row in enumerate(reader):
+                if i < 2:
+                    pass
+                else:
+                    new = SLSN()
+                    new.name = row[0]
+                    new.redshift = float(row[1])
+                    new.ref = row[3]
+                    new.arxiv = arxiv
+                    new.type = "SLSN-I"
+                    lum = float(row[2]) * 10 ** 44
+                    lum = lum * u.erg / u.second
+                    new.abs_peak = 4.77 - 2.5 * np.log10(lum/u.L_sun.cgs)
+                    print new.abs_peak
+
+                    new_entries.append(new)
+
+        # self.entries.extend(new_entries)
+        raw_input()
+
 
 class SLSN:
     """Class for one superluminous supernovae
@@ -400,8 +548,8 @@ class SLSN:
         self.abs_peak = np.nan
         self.radiated_energy_upper = np.nan
         self.radiated_energy_lower = np.nan
-        self.ref = np.nan
-        self.arxiv = np.nan
+        self.ref = ""
+        self.arxiv = ""
         self.peak_date = np.nan
         self.ra = np.nan
         self.dec = np.nan
