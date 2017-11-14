@@ -2,7 +2,7 @@ import numpy as np
 import csv
 from astropy.time import Time
 import astropy.units as u
-import astropy.constants as c
+from astropy.coordinates import SkyCoord
 from tabulate import tabulate
 
 
@@ -18,6 +18,9 @@ class catalogue():
         self.extract_1612_05978()
         self.extract_1612_07321()
         self.extract_1705_06047()
+        self.extract_1708_01623()
+        self.extract_1708_08971()
+        self.extract_the_open_supernova_catalog()
 
         self.unique_entries = []
         self.combine_entries()
@@ -40,11 +43,15 @@ class catalogue():
             ("EBV", np.float),
             ("Notes", "S50"),
             ("Alias", "S50")
-
         ])
 
-        table = np.zeros_like(self.unique_entries, dtype=dt)
+        # Ignore entries if the ONLY source is one of the following (because
+        # their selection criteria are not reliable).
+        ignore_list = ["1708.08971 (p.11)"]
+        ignore_list = []
 
+        table = np.zeros_like(self.unique_entries, dtype=dt)
+        mask = []
 
         for i, sn in enumerate(self.unique_entries):
             table[i] = np.array(
@@ -55,14 +62,30 @@ class catalogue():
                 dtype=dt
             )
 
-        to_print = ["Name", "Redshift", "Type", "RA", "Dec", "Absolute Magnitude Peak",
-                    "Arxiv Link"]
-        table = np.sort(table, order=['Redshift'], axis=0).view()
+            mask.append(sn.arxiv not in ignore_list)
+
+        mask = np.array(mask)
+        self.unique_entries = np.array(self.unique_entries)
+
+        to_print = ["Name", "Redshift", "Type", "RA", "Dec",
+                    "Absolute Magnitude Peak", "Arxiv Link"]
+
+        table = np.sort(table[mask], order=['Redshift'], axis=0).view()
         print tabulate(table[to_print], to_print)
 
         print "There are", len(self.entries), "entries in SLSN catalogue."
         print "There are", len(self.unique_entries), "unique entries in SLSN " \
                                                      "catalogue."
+
+        print "We reject any SLSN which are listed only in one of the folowing",
+        print "references, on the basis that these sources are unreliable: \n"
+
+        for link in ignore_list:
+            print " -", link
+
+        print ""
+        print "This leaves us with", len(self.unique_entries[mask]),
+        print "reliable SLSN entries in the catalogue."
 
     def combine_entries(self):
         """Combine entries from
@@ -105,7 +128,6 @@ class catalogue():
                                 old_val = getattr(existing_entry, key)
                                 if new_val is not np.nan:
                                     if key in ["arxiv", "ref"]:
-                                        print current, old_val, new_val
                                         to_add = old_val + ", " + new_val
 
                                         setattr(existing_entry, key, to_add)
@@ -217,7 +239,7 @@ class catalogue():
                 else:
                     new = SLSN()
                     new.name = "PTF" + row[0]
-                    new.ra = row[1]
+                    ra = row[1]
                     dec = [x for x in row[2]]
 
                     if len(dec) > 12:
@@ -227,7 +249,7 @@ class catalogue():
 
                     dec = "".join(dec)
 
-                    new.dec = dec
+                    new.add_coordinates(ra, dec)
 
                     if len(row[3]) > 2:
                         new.type = "SLSN-R"
@@ -408,14 +430,22 @@ class catalogue():
                         remainders.append(int(rest))
                         new.alias = alias_dict[rest]
 
-                    new.ra = row[1]
+                    ra = row[1]
+
+                    # Checks for typo in SN2213-1745 RA value, with "." rather
+                    # than ":" between seconds
+
+                    if len(ra.split(":")) == 2:
+                        ra_split = ra.split(".")
+                        ra = ".".join([":".join(ra_split[:2]), ra_split[2]])
 
                     # Assigns dec, and checks to see if a "-" hasbeen ommited
                     #  from negative declinations
                     dec = row[2]
                     if len(dec) < 11:
                         dec = "-" + dec
-                    new.dec = dec
+                    dec = dec
+                    new.add_coordinates(ra, dec)
 
                     # Removes special characters from redshift
 
@@ -530,13 +560,150 @@ class catalogue():
                     lum = float(row[2]) * 10 ** 44
                     lum = lum * u.erg / u.second
                     new.abs_peak = 4.77 - 2.5 * np.log10(lum/u.L_sun.cgs)
-                    print new.abs_peak
 
                     new_entries.append(new)
 
-        # self.entries.extend(new_entries)
-        raw_input()
+        self.entries.extend(new_entries)
 
+    def extract_1708_01623(self):
+        """Extracts SLSN entries for arxiv paper 1708.01623 (page 3)"""
+        path = "source_lists/tabula-1708.01623 (dragged).csv"
+        arxiv = "1708.01623 (p.3)"
+        with open(path, 'rb') as csvfile:
+            reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+            for i, row in enumerate(reader):
+                if i < 2:
+                    pass
+                else:
+                    # print row
+                    new = SLSN()
+                    new.name = "PTF" + row[0]
+                    new.arxiv = arxiv
+                    ra = row[1]
+
+                    dec = [x for x in row[2]]
+
+                    if len(dec) > 12:
+                        dec.pop(0)
+                        dec.pop(0)
+                        dec[0] = "-"
+
+                    dec = "".join(dec)
+
+                    new.add_coordinates(ra, dec)
+
+                    new.redshift = float(row[3])
+                    new.type = "SLSN-" + row[4]
+                    new.ref = arxiv
+                    self.entries.append(new)
+
+    def extract_1708_08971(self):
+        """Extract SLSN entries for arxiv paper 1708.08971 (page 11)"""
+        path = "source_lists/tabula-1708.08971 (dragged).csv"
+        arxiv = "1708.08971 (p.11)"
+
+        with open(path, 'rb') as csvfile:
+            reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+            for i, row in enumerate(reader):
+                if i < 1:
+                    pass
+                else:
+                    new = SLSN()
+                    new.name = row[0]
+                    new.redshift = float(row[5])
+                    new.ref = row[8]
+                    new.arxiv = arxiv
+
+                    date_type = row[6][-1]
+                    mjd = Time(float(row[7]), format="mjd")
+                    mjd.out_subfmt = "date"
+                    mjd.format = "iso"
+
+                    ra = row[1]
+                    dec = row[2]
+                    new.add_coordinates(ra, dec)
+
+                    if date_type == "p":
+                        new.peak_date = mjd
+                    elif date_type == "d":
+                        new.disc_date = mjd
+                    else:
+                        raise Exception("Unknown date type!")
+
+                    self.entries.append(new)
+
+    def extract_the_open_supernova_catalog(self):
+        """Extracts SLSN from the Open supernovae catalog with the type SLSN.
+        The catalog can be found at https://sne.space/ .
+        """
+        arxiv = "1605.01054 (https://sne.space/)"
+
+        new_entries = []
+
+        path = "source_lists/The Open Supernova Catalog.csv"
+
+        with open(path, 'rb') as csvfile:
+            reader = csv.reader(csvfile, delimiter=',', quotechar='"')
+            for i, row in enumerate(reader):
+                if i < 1:
+                    pass
+
+                # Check for weird artifact entry in SLSN catalog
+                elif row[0] != "PISN_Jerkstrand":
+                    new = SLSN()
+                    new.name = row[0]
+                    new.alias = list(
+                        set([x.strip() for x in row[1].split(",")
+                            if x != new.name]))
+
+                    for j, attr in enumerate(["disc_date", "peak_date"]):
+                        try:
+                            date = "-".join(row[j+2].split("/"))
+                            date = Time(date, format="iso")
+                            date.out_subfmt = "date"
+                            setattr(new, attr, date)
+                        except ValueError:
+                            new.notes += "Problem in " + attr + ", only have "
+                            new.notes += row[j + 2] + " (not ISO format), "
+
+                    if row[4] != "":
+                        new.abs_peak = float(row[4])
+
+                    coords = [np.nan, np.nan]
+
+                    for j, angle in enumerate(coords):
+                        if row[5 + j] != "":
+                            values = row[5 + j].split(",")
+                            coords[j] = values[0]
+                            if len(values) > 1:
+                                new.notes += "Several values reported for " + \
+                                             ["ra", "dec"][j] + " " + \
+                                             str(values) + ", "
+
+                    new.add_coordinates(coords[0], coords[1])
+
+                    for j, attr in enumerate(["redshift", "ebv"]):
+                        val = row[7 + (2 * j)]
+                        if val != "":
+                            all_vals = list(set(val.split(",")))
+                            setattr(new, attr, float(all_vals[0]))
+                            if len(all_vals) > 1:
+                                new.notes += "Several values reported for " + \
+                                             attr + " " + str(all_vals) + ", "
+
+                    for j, attr in enumerate(["type", "ref"]):
+                        val = row[8 + (2 * j)]
+                        if val != "":
+                            all_vals = list(set(val.split(",")))
+                            setattr(new, attr, all_vals[0])
+                            if len(all_vals) > 1:
+                                new.notes += "Several values reported for " + \
+                                             attr + " " + str(all_vals) + ", "
+
+                    new.arxiv = arxiv
+                    new_entries.append(new)
+
+        self.entries.extend(new_entries)
 
 class SLSN:
     """Class for one superluminous supernovae
@@ -551,10 +718,31 @@ class SLSN:
         self.ref = ""
         self.arxiv = ""
         self.peak_date = np.nan
+        self.disc_date = np.nan
         self.ra = np.nan
         self.dec = np.nan
+        self.coord = np.nan
         self.ebv = np.nan
         self.notes = ""
         self.alias = []
+
+    def add_coordinates(self, ra, dec):
+        if np.nan not in [ra, dec]:
+            split_ra = ra.split(":")
+            if len(split_ra) == 1:
+                ra_fmt = u.deg
+            else:
+                ra_fmt = u.hourangle
+
+            split_dec = dec.split(":")
+            if len(split_dec) == 1:
+                dec_fmt = u.deg
+            else:
+                dec_fmt = u.deg
+
+            c = SkyCoord(ra + " " + dec, unit=(ra_fmt, dec_fmt))
+            self.ra = c.ra.deg
+            self.dec = c.dec.deg
+            self.coord = c
 
 catalogue()
