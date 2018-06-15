@@ -5,8 +5,7 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 from tabulate import tabulate
 
-
-class catalogue():
+class Catalogue():
     """Class to extract SLSN entries from various data tables."""
     def __init__(self):
         self.entries = []
@@ -37,9 +36,10 @@ class catalogue():
             ("Radiated Energy (Upper Limit)", np.float),
             ("Reference", "S50"),
             ("Arxiv Link", "S50"),
-            ("Peak Date", "S50"),
-            ("RA", "S20"),
-            ('Dec', "S20"),
+            ("Peak Date", np.float),
+            ("Discover Date", np.float),
+            ("RA", np.float),
+            ('Dec', np.float),
             ("EBV", np.float),
             ("Notes", "S50"),
             ("Alias", "S50")
@@ -48,34 +48,41 @@ class catalogue():
         # Ignore entries if the ONLY source is one of the following (because
         # their selection criteria are not reliable).
         ignore_list = ["1708.08971 (p.11)"]
-        ignore_list = []
+        # ignore_list = []
 
         table = np.zeros_like(self.unique_entries, dtype=dt)
         mask = []
 
         for i, sn in enumerate(self.unique_entries):
             table[i] = np.array(
-                (sn.name, sn.type, sn.redshift, sn.abs_peak,
+                (sn.name, sn.type, float(sn.redshift), sn.abs_peak,
                  sn.radiated_energy_lower, sn.radiated_energy_upper, sn.ref,
-                 str(sn.arxiv), str(sn.peak_date), sn.ra, sn.dec, sn.ebv,
+                 str(sn.arxiv), float(str(sn.peak_date)),
+                 float(str(sn.disc_date)),
+                 float(sn.ra), float(sn.dec), sn.ebv,
                  sn.notes, str(sn.alias)),
                 dtype=dt
             )
 
             mask.append(sn.arxiv not in ignore_list)
 
+            if sn.notes != "":
+                print "\n", sn.name, "\n", sn.notes
+
         mask = np.array(mask)
         self.unique_entries = np.array(self.unique_entries)
 
-        to_print = ["Name", "Redshift", "Type", "RA", "Dec",
-                    "Absolute Magnitude Peak", "Arxiv Link"]
+        to_print = ["Name", "Alias", "Redshift", "Type", "RA", "Dec",
+                    # "Absolute Magnitude Peak", "Peak Date", "Discover Date",
+                    "Arxiv Link"]
 
-        table = np.sort(table[mask], order=['Redshift'], axis=0).view()
-        print tabulate(table[to_print], to_print)
+        self.data_table = np.sort(
+            table[mask], order=['Name'], axis=0).view()
+        print tabulate(self.data_table[to_print], to_print)
 
-        print "There are", len(self.entries), "entries in SLSN catalogue."
+        print "There are", len(self.entries), "entries in SLSN Catalogue."
         print "There are", len(self.unique_entries), "unique entries in SLSN " \
-                                                     "catalogue."
+                                                     "Catalogue."
 
         print "We reject any SLSN which are listed only in one of the folowing",
         print "references, on the basis that these sources are unreliable: \n"
@@ -85,7 +92,9 @@ class catalogue():
 
         print ""
         print "This leaves us with", len(self.unique_entries[mask]),
-        print "reliable SLSN entries in the catalogue."
+        print "reliable SLSN entries in the Catalogue."
+
+        print "We require category to be SLSN"
 
     def combine_entries(self):
         """Combine entries from
@@ -141,7 +150,7 @@ class catalogue():
                                         setattr(existing_entry, key,
                                                 all_names)
 
-                                    elif key in ["name", "notes"]:
+                                    elif key in ["name", "notes", "coord"]:
                                         pass
 
                                     elif old_val is np.nan:
@@ -152,7 +161,8 @@ class catalogue():
                                     elif (isinstance(old_val, float) and
                                               isinstance(new_val, float)):
                                         n_digits = min(len(str(old_val)),
-                                                       len(str(new_val))) - 2
+                                                       len(str(new_val))) - \
+                                                   (len(str(int(old_val))) + 1)
 
                                         if round(old_val, n_digits) == round(
                                                 new_val, n_digits):
@@ -272,6 +282,7 @@ class catalogue():
                     date = "".join(date)
                     date = Time(date, format="iso")
                     date.out_subfmt = "date"
+                    date.format = "mjd"
                     new.peak_date = date
 
                     new.ebv = float(row[13])
@@ -617,7 +628,6 @@ class catalogue():
                     date_type = row[6][-1]
                     mjd = Time(float(row[7]), format="mjd")
                     mjd.out_subfmt = "date"
-                    mjd.format = "iso"
 
                     ra = row[1]
                     dec = row[2]
@@ -661,10 +671,12 @@ class catalogue():
                             date = "-".join(row[j+2].split("/"))
                             date = Time(date, format="iso")
                             date.out_subfmt = "date"
+                            date.format = "mjd"
                             setattr(new, attr, date)
                         except ValueError:
-                            new.notes += "Problem in " + attr + ", only have "
-                            new.notes += row[j + 2] + " (not ISO format), "
+                            if row[j + 2] != "":
+                                new.notes += "Problem in " + attr + ", only have "
+                                new.notes += row[j + 2] + " (not ISO format), "
 
                     if row[4] != "":
                         new.abs_peak = float(row[4])
@@ -691,14 +703,19 @@ class catalogue():
                                 new.notes += "Several values reported for " + \
                                              attr + " " + str(all_vals) + ", "
 
-                    for j, attr in enumerate(["type", "ref"]):
-                        val = row[8 + (2 * j)]
-                        if val != "":
-                            all_vals = list(set(val.split(",")))
-                            setattr(new, attr, all_vals[0])
-                            if len(all_vals) > 1:
-                                new.notes += "Several values reported for " + \
-                                             attr + " " + str(all_vals) + ", "
+                    type_val = row[8]
+                    if type_val != "":
+                        all_vals = list(set(type_val.split(",")))
+                        setattr(new, "type", all_vals[0])
+                        if len(all_vals) > 1:
+                            new.notes += "Several values reported for " + \
+                                         attr + " " + str(all_vals) + ", "
+
+                    ref_val = row[10]
+                    if ref_val != "":
+                        setattr(new, "ref", ref_val)
+
+
 
                     new.arxiv = arxiv
                     new_entries.append(new)
@@ -745,4 +762,6 @@ class SLSN:
             self.dec = c.dec.deg
             self.coord = c
 
-catalogue()
+if __name__ == '__main__':
+    Catalogue()
+
